@@ -1,0 +1,213 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class CharacterController : MonoBehaviour
+{
+    [Header("Components")]
+    public Rigidbody2D rb;
+
+    [Header("Walk")]    
+    public float moveSpeed;
+
+
+    [Header("Jump")]
+    public float jumpForce;
+    private float jumpTimeCounter;
+    public float jumpTime;
+    private bool isJumping;
+    public float maxJumpsSpeed;
+    public float currentJumpSpeed;
+    public float minJumpSpeed;
+    public float speedMultiplicator;
+    public int jumpsLeft;
+    public int jumpsLeftValue;
+
+    [Header("Fall")]
+    public float maxFallSpeed;
+
+
+    [Header("GroundCheck")]
+    public bool isGroundet;
+    public float checkLength;
+    public Vector3 colliderOffset;
+    public LayerMask groundLayer;
+
+    [Header("JumpTimer")]
+    public float jumpDelay;
+    public float jumpTimerDelay;
+
+    public float jumpLeave;
+    public float jumpTimerLeave;
+
+    [Header("FacingDir")]
+    public bool walkRight;
+    public bool walkLeft;
+    public Vector2 direction;
+    public bool facingRight = true;
+
+    [Header("Special")]
+    public bool ActivatedMovement = true;
+
+    private void Start()
+    {
+        rb = GetComponent<Rigidbody2D>();
+    }
+
+    private void Update()
+    {
+        if (ActivatedMovement)
+        {
+            Walk();
+            JumpDelay();
+            GetWalkDir();
+        }
+    }
+
+    private void GetWalkDir()
+    {
+
+        if (Input.GetKeyDown(KeyCode.A))
+        {
+            walkLeft = true;
+            if (walkRight == true)
+            {
+                walkRight = false;
+            }
+        }
+        if (Input.GetKey(KeyCode.A) && walkLeft)
+        {
+            direction.x = -1;
+        }
+        if (Input.GetKeyUp(KeyCode.A))
+        {
+            walkLeft = false;
+        }
+
+
+        if (Input.GetKeyDown(KeyCode.D))
+        {
+            walkRight = true;
+            if (walkLeft == true)
+            {
+                walkLeft = false;
+            }
+        }
+        if (Input.GetKey(KeyCode.D) && walkRight)
+        {
+            direction.x = 1;
+        }
+        if (Input.GetKeyUp(KeyCode.D))
+        {
+            walkRight = false;
+        }
+
+        if (!walkRight && !walkLeft)
+        {
+            direction.x = 0;
+        }
+    }
+    private void Walk()
+    {
+        if(direction.x > 0 && !facingRight || direction.x < 0 && facingRight)
+        {
+            Flip();
+        }
+
+        rb.velocity = new Vector2(moveSpeed * direction.x, rb.velocity.y);
+    }
+
+
+    void JumpDelay()
+    {
+        IsGroundet();
+        if (Input.GetKeyDown(KeyCode.K))
+        {
+            jumpTimerDelay = Time.time + jumpDelay;
+        }
+        if (isGroundet)
+        {
+            jumpTimerLeave = jumpLeave;
+        }
+        else
+        {
+            jumpTimerLeave -= Time.deltaTime;
+        }
+        if (jumpsLeft > 0)
+        {
+            Jump();
+        }
+        if (isGroundet == true)
+        {
+            jumpsLeft = jumpsLeftValue;
+        }
+    }
+        private void Jump()
+        {
+            if (jumpTimerDelay > Time.time && isGroundet == true || jumpTimerLeave > 0 && Input.GetKeyDown(KeyCode.K) || jumpsLeft > 0 && Input.GetKeyDown(KeyCode.K))
+            {
+                rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+                jumpTimeCounter = jumpTime;
+                currentJumpSpeed = maxJumpsSpeed;
+                isJumping = true;
+                jumpsLeft -= 1;
+            }
+            if (Input.GetKey(KeyCode.K))
+            {
+                if(jumpTimeCounter > 0 && isJumping == true)
+                {
+                    rb.velocity = new Vector2(rb.velocity.x, currentJumpSpeed);
+                    jumpTimeCounter -= Time.deltaTime;
+                    if(currentJumpSpeed > minJumpSpeed)
+                    {
+                        currentJumpSpeed -= speedMultiplicator;
+                    }
+                }
+                else
+                {
+                    isJumping = false;
+                }
+            }
+            if (Input.GetKeyUp(KeyCode.K))
+            {
+                isJumping = false;
+                if(rb.velocity.y > 0)
+                {
+                    rb.velocity /= 2;
+                    jumpTimerDelay = 0;
+                }
+            }
+            MaxFallSpeed();
+        }
+    private void MaxFallSpeed()
+    {
+        if(rb.velocity.y <= maxFallSpeed)
+        {
+            rb.gravityScale = 0;
+        }
+        else
+        {
+            rb.gravityScale = 6;
+        }
+    }
+
+    void Flip()
+    {
+        facingRight = !facingRight;
+        Vector3 Scaler = transform.localScale;
+        Scaler.x *= -1;
+        transform.localScale = Scaler;
+    }
+
+    private void IsGroundet()
+    {
+        isGroundet = Physics2D.Raycast(transform.position + colliderOffset, Vector2.down, checkLength, groundLayer) || Physics2D.Raycast(transform.position - colliderOffset, Vector2.down, checkLength, groundLayer);
+    }
+
+    private void OnDrawGizmos()
+    {
+        Gizmos.color = Color.red;
+        Gizmos.DrawLine(transform.position + colliderOffset, transform.position + colliderOffset + Vector3.down * checkLength);
+        Gizmos.DrawLine(transform.position - colliderOffset, transform.position - colliderOffset + Vector3.down * checkLength);
+    }
+}
